@@ -9,7 +9,6 @@ static void *fast_memset(void *dst, int val, uint cnt)
 	// if cnt is too large, fast copy; otherwise, trivial copy
 
 	if (cnt > 32) {
-
 		// align to 8 bytes
 		uint64 r = (8 - (uint64)sp % 8) % 8;
 		while (r != 0) {
