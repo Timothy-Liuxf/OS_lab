@@ -2,6 +2,7 @@
 #include "defs.h"
 #include "loader.h"
 #include "syscall_ids.h"
+#include "taskdef.h"
 #include "timer.h"
 #include "trap.h"
 
@@ -36,16 +37,32 @@ uint64 sys_gettimeofday(TimeVal *val, int _tz)
 	return 0;
 }
 
+int sys_task_info(TaskInfo *ti)
+{
+	struct proc *proc_ptr = curr_proc();
+	ti->status = Running;
+	memmove(ti->syscall_times, proc_ptr->syscall_times,
+		sizeof(ti->syscall_times));
+	uint64 diff = get_cycle() - proc_ptr->cycles_when_start;
+	ti->time = (int)(diff / (CPU_FREQ / 1000));
+	return 0;
+}
+
 extern char trap_page[];
 
 void syscall()
 {
-	struct trapframe *trapframe = curr_proc()->trapframe;
+	struct proc *proc_ptr = curr_proc();
+	struct trapframe *trapframe = proc_ptr->trapframe;
 	int id = trapframe->a7, ret;
 	uint64 args[6] = { trapframe->a0, trapframe->a1, trapframe->a2,
 			   trapframe->a3, trapframe->a4, trapframe->a5 };
 	tracef("syscall %d args = [%x, %x, %x, %x, %x, %x]", id, args[0],
 	       args[1], args[2], args[3], args[4], args[5]);
+	if (id < MAX_SYSCALL_NUM) {
+		++proc_ptr->syscall_times[id];
+	}
+
 	switch (id) {
 	case SYS_write:
 		ret = sys_write(args[0], (char *)args[1], args[2]);
@@ -58,6 +75,9 @@ void syscall()
 		break;
 	case SYS_gettimeofday:
 		ret = sys_gettimeofday((TimeVal *)args[0], args[1]);
+		break;
+	case SYS_task_info:
+		ret = sys_task_info((TaskInfo *)args[0]);
 		break;
 	default:
 		ret = -1;

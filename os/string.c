@@ -1,14 +1,61 @@
 #include "string.h"
 #include "types.h"
 
+static void *fast_memset(void *dst, int val, uint cnt)
+{
+	char *sp = (char *)dst; // start pos
+	char *ep = sp + cnt;
+
+	// if cnt is too large, fast copy; otherwise, trivial copy
+
+	if (cnt > 32) {
+
+		// align to 8 bytes
+		uint64 r = (8 - (uint64)sp % 8) % 8;
+		while (r != 0) {
+			*sp++ = val;
+			--r;
+		}
+
+		// fast copy
+		uint64 val64 = val & 0xFF;
+		val64 |= val64 << 8;
+		val64 |= val64 << 16;
+		val64 |= val64 << 32;
+
+		r = (uint64)(ep - sp) / 8;
+
+		int tmp = r % 8;
+		for (int i = 0; i < tmp; ++i) {
+			*(uint64 *)sp = val64;
+			sp += 8;
+		}
+		r -= tmp;
+
+		while (r > 0) {
+			((uint64 *)sp)[0] = val64;
+			((uint64 *)sp)[1] = val64;
+			((uint64 *)sp)[2] = val64;
+			((uint64 *)sp)[3] = val64;
+			((uint64 *)sp)[4] = val64;
+			((uint64 *)sp)[5] = val64;
+			((uint64 *)sp)[6] = val64;
+			((uint64 *)sp)[7] = val64;
+			sp += 64, r -= 8;
+		}
+	}
+
+	// copy others
+	while (sp != ep) {
+		*sp++ = val;
+	}
+
+	return dst;
+}
+
 void *memset(void *dst, int c, uint n)
 {
-	char *cdst = (char *)dst;
-	int i;
-	for (i = 0; i < n; i++) {
-		cdst[i] = c;
-	}
-	return dst;
+	return fast_memset(dst, c, n);
 }
 
 int memcmp(const void *v1, const void *v2, uint n)
