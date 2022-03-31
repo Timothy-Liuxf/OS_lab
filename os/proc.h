@@ -3,6 +3,7 @@
 
 #include "riscv.h"
 #include "types.h"
+#include "syscall_ids.h"
 
 #define NPROC (16)
 
@@ -38,6 +39,8 @@ struct proc {
 	struct trapframe *trapframe; // data page for trampoline.S
 	struct context context; // swtch() here to run process
 	uint64 max_page;
+	uint64 cycles_when_start; // The CPU cycle when the process starts
+	unsigned int syscall_times[MAX_SYSCALL_NUM];
 };
 
 struct proc *curr_proc();
