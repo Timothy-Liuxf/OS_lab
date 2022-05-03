@@ -4,6 +4,7 @@
 #include "riscv.h"
 #include "types.h"
 #include "queue.h"
+#include "syscall_ids.h"
 
 #define NPROC (512)
 #define FD_BUFFER_SIZE (16)
@@ -45,6 +46,8 @@ struct proc {
 	struct proc *parent; // Parent process
 	uint64 exit_code;
 	struct file *files[FD_BUFFER_SIZE];
+	uint64 cycles_when_start; // The CPU cycle when the process starts
+	unsigned int syscall_times[MAX_SYSCALL_NUM];
 };
 
 int cpuid();
