@@ -200,6 +200,23 @@ int exec(char *name)
 	return 0;
 }
 
+int spawn(char *name)
+{
+	int id = get_id_by_name(name);
+	if (id < 0)
+		return -1;
+	struct proc *p = curr_proc();
+	struct proc *np = allocproc();
+	if (np == NULL) {
+		panic("In spawn: allocproc failed!\n");
+	}
+
+	loader(id, np);
+	np->parent = p;
+	add_task(np);
+	return np->pid;
+}
+
 int wait(int pid, int *code)
 {
 	struct proc *np;
