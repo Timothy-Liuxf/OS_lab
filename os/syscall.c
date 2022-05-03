@@ -249,7 +249,7 @@ void syscall()
 		ret = sys_sched_yield();
 		break;
 	case SYS_gettimeofday:
-		ret = sys_gettimeofday(args[0], args[1]);
+		ret = sys_gettimeofday((TimeVal *)args[0], args[1]);
 		break;
 	case SYS_getpid:
 		ret = sys_getpid();
