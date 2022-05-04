@@ -226,10 +226,10 @@ uint64 sys_munmap(void *addr, uint64 len)
 	return 0;
 }
 
-uint64 sys_set_priority(long long prio){
-    return setpriority(prio);
+uint64 sys_set_priority(long long prio)
+{
+	return setpriority(prio);
 }
-
 
 extern char trap_page[];
 

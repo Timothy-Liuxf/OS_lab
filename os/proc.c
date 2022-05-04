@@ -33,7 +33,7 @@ struct proc *curr_proc()
 
 static int proc_cmp_func(int id1, int id2)
 {
-	return pool[id2].stride < pool[id1].stride; 
+	return pool[id2].stride < pool[id1].stride;
 }
 
 // initialize the proc table at boot time.

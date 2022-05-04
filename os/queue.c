@@ -1,7 +1,8 @@
 #include "queue.h"
 #include "defs.h"
 
-static int default_cmp_func(int x, int y) {
+static int default_cmp_func(int x, int y)
+{
 	return x < y;
 }
 
