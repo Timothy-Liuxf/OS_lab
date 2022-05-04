@@ -161,23 +161,35 @@ uint64 sys_mmap(void *addr, uint64 len, int port, int flag, int fd)
 
 	len = PGROUNDUP(len);
 	uint64 end = (uint64)addr + len;
-	pagetable_t pg = curr_proc()->pagetable;
+	struct proc *p = curr_proc();
+	pagetable_t pg = p->pagetable;
+	uint64 va;
+	uint64 ret_val = 0;
 
-	for (uint64 va = (uint64)addr; va != end; va += PAGE_SIZE) {
+	for (va = (uint64)addr; va != end; va += PAGE_SIZE) {
 		void *pa = kalloc();
 		if (pa == 0) {
 			debugf("In sys_mmap: Physical memory is not enough!");
-			return -1;
+			ret_val = -1;
+			goto ret;
 		}
 
 		debugf("In mmap: Will map pa: %p to va: %p", pa, va);
 		if (mappages(pg, va, PAGE_SIZE, (uint64)pa,
 			     (port << 1) | PTE_U) != 0) {
 			debugf("In sys_mmap: Memory map failed!");
-			return -1;
+			ret_val = -1;
+			goto ret;
 		}
 	}
-	return 0;
+
+	ret_val = 0;
+ret:;
+	uint64 new_max_page = end / PAGE_SIZE;
+	if (new_max_page > p->max_page) {
+		p->max_page = new_max_page;
+	}
+	return ret_val;
 }
 
 uint64 sys_munmap(void *addr, uint64 len)
@@ -215,8 +227,7 @@ uint64 sys_munmap(void *addr, uint64 len)
 }
 
 uint64 sys_set_priority(long long prio){
-    // TODO: your job is to complete the sys call
-    return -1;
+    return setpriority(prio);
 }
 
 
@@ -278,6 +289,9 @@ void syscall()
 		break;
 	case SYS_task_info:
 		ret = sys_task_info((TaskInfo *)args[0]);
+		break;
+	case SYS_setpriority:
+		ret = sys_set_priority(args[0]);
 		break;
 	default:
 		ret = -1;

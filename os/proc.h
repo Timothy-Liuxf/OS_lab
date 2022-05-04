@@ -48,6 +48,8 @@ struct proc {
 	struct file *files[FD_BUFFER_SIZE];
 	uint64 cycles_when_start; // The CPU cycle when the process starts
 	unsigned int syscall_times[MAX_SYSCALL_NUM];
+	long long priority;
+	long long stride;
 };
 
 int cpuid();
@@ -60,6 +62,7 @@ void yield();
 int fork();
 int exec(char *);
 int spawn(char *name);
+int setpriority(long long prio);
 int wait(int, int *);
 void add_task(struct proc *);
 struct proc *pop_task();
