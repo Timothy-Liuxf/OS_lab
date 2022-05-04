@@ -185,7 +185,7 @@ uint64 sys_mmap(void *addr, uint64 len, int port, int flag, int fd)
 
 	ret_val = 0;
 ret:;
-	uint64 new_max_page = end / PAGE_SIZE;
+	uint64 new_max_page = va / PAGE_SIZE;
 	if (new_max_page > p->max_page) {
 		p->max_page = new_max_page;
 	}
