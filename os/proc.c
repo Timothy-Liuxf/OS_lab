@@ -4,6 +4,8 @@
 #include "trap.h"
 #include "vm.h"
 #include "queue.h"
+#include "timer.h"
+#include <limits.h>
 
 struct proc pool[NPROC];
 __attribute__((aligned(16))) char kstack[NPROC][PAGE_SIZE];
@@ -13,6 +15,11 @@ extern char boot_stack_top[];
 struct proc *current_proc;
 struct proc idle;
 struct queue task_queue;
+
+#define BIG_STRIDE 65536
+#define INIT_PRIORITY 16
+#define MIN_PRIORITY 2
+#define MAX_PRIORITY LLONG_MAX
 
 int threadid()
 {
@@ -29,6 +36,11 @@ struct proc *curr_proc()
 	return current_proc;
 }
 
+static int proc_cmp_func(int id1, int id2)
+{
+	return pool[id2].stride < pool[id1].stride;
+}
+
 // initialize the proc table at boot time.
 void proc_init()
 {
@@ -41,7 +53,7 @@ void proc_init()
 	idle.kstack = (uint64)boot_stack_top;
 	idle.pid = IDLE_PID;
 	current_proc = &idle;
-	init_queue(&task_queue);
+	init_queue(&task_queue, proc_cmp_func);
 }
 
 int allocpid()
@@ -96,6 +108,10 @@ found:
 	memset((void *)p->files, 0, sizeof(struct file *) * FD_BUFFER_SIZE);
 	p->context.ra = (uint64)usertrapret;
 	p->context.sp = p->kstack + KSTACK_SIZE;
+	p->cycles_when_start = get_cycle();
+	memset(p->syscall_times, 0, sizeof(p->syscall_times));
+	p->priority = INIT_PRIORITY;
+	p->stride = 0;
 	return p;
 }
 
@@ -139,6 +155,7 @@ void scheduler()
 		tracef("swtich to proc %d", p - pool);
 		p->state = RUNNING;
 		current_proc = p;
+		p->stride += BIG_STRIDE / p->priority;
 		swtch(&idle.context, &p->context);
 	}
 }
@@ -269,6 +286,34 @@ int exec(char *path, char **argv)
 	bin_loader(ip, p);
 	iput(ip);
 	return push_argv(p, argv);
+}
+
+int spawn(char *name)
+{
+	int id = get_id_by_name(name);
+	if (id < 0)
+		return -1;
+	struct proc *p = curr_proc();
+	struct proc *np = allocproc();
+	if (np == NULL) {
+		panic("In spawn: allocproc failed!\n");
+	}
+
+	loader(id, np);
+	np->parent = p;
+	add_task(np);
+	return np->pid;
+}
+
+int setpriority(long long prio)
+{
+	if (prio < MIN_PRIORITY || prio > MAX_PRIORITY) {
+		return -1;
+	}
+
+	struct proc *p = curr_proc();
+	p->priority = prio;
+	return (int)prio;
 }
 
 int wait(int pid, int *code)
