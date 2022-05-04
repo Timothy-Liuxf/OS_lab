@@ -5,6 +5,7 @@
 #include "vm.h"
 #include "queue.h"
 #include "timer.h"
+#include <limits.h>
 
 struct proc pool[NPROC];
 __attribute__((aligned(16))) char kstack[NPROC][PAGE_SIZE];
@@ -18,7 +19,7 @@ struct queue task_queue;
 #define BIG_STRIDE 65536
 #define INIT_PRIORITY 16
 #define MIN_PRIORITY 2
-#define MAX_PRIORITY BIG_STRIDE
+#define MAX_PRIORITY LLONG_MAX
 
 int threadid()
 {
