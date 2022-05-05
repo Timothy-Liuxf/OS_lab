@@ -288,20 +288,24 @@ int exec(char *path, char **argv)
 	return push_argv(p, argv);
 }
 
-int spawn(char *name)
+int spawn(char *path, char **argv)
 {
-	int id = get_id_by_name(name);
-	if (id < 0)
+	infof("spawn : %s\n", path);
+	struct inode *ip;
+	if ((ip = namei(path)) == 0) {
+		errorf("invalid file name %s\n", path);
 		return -1;
-	struct proc *p = curr_proc();
+	}
 	struct proc *np = allocproc();
 	if (np == NULL) {
 		panic("In spawn: allocproc failed!\n");
 	}
 
-	loader(id, np);
-	np->parent = p;
+	bin_loader(ip, np);
+	np->parent = curr_proc();
 	add_task(np);
+	iput(ip);
+	push_argv(np, argv);
 	return np->pid;
 }
 

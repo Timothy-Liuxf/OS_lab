@@ -62,7 +62,7 @@ void sched();
 void yield();
 int fork();
 int exec(char *, char **);
-int spawn(char *name);
+int spawn(char *, char **);
 int setpriority(long long prio);
 int wait(int, int *);
 void add_task(struct proc *);

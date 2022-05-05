@@ -12,6 +12,7 @@ int bin_loader(struct inode *ip, struct proc *p)
 	uint64 length = ip->size;
 	uint64 va_start = BASE_ADDRESS;
 	uint64 va_end = PGROUNDUP(BASE_ADDRESS + length);
+
 	for (uint64 va = va_start, off = 0; va < va_end;
 	     va += PGSIZE, off += PAGE_SIZE) {
 		page = kalloc();
