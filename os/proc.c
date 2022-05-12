@@ -303,6 +303,7 @@ int spawn(char *path, char **argv)
 
 	bin_loader(ip, np);
 	np->parent = curr_proc();
+	init_stdio(np);
 	add_task(np);
 	iput(ip);
 	push_argv(np, argv);
