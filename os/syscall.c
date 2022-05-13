@@ -323,7 +323,7 @@ int sys_fstat(int fd, uint64 stat)
 		errorf("In sys_fstat: invalid va!");
 		return -1;
 	}
-	return -1;
+	return 0;
 }
 
 int sys_linkat(int olddirfd, uint64 oldpath, int newdirfd, uint64 newpath,
@@ -338,7 +338,7 @@ int sys_linkat(int olddirfd, uint64 oldpath, int newdirfd, uint64 newpath,
 	memset((void *)oldpathbuf, 0, sizeof(oldpathbuf));
 	memset((void *)newpathbuf, 0, sizeof(newpathbuf));
 	if (copyinstr(p->pagetable, oldpathbuf, oldpath, DIRSIZ) == -1 ||
-	    copyinstr(p->pagetable, newpathbuf, oldpath, DIRSIZ) == -1) {
+	    copyinstr(p->pagetable, newpathbuf, newpath, DIRSIZ) == -1) {
 		errorf("In sys_linkat: invalid virtual address!");
 		return -1;
 	}
@@ -422,6 +422,7 @@ void syscall()
 		break;
 	case SYS_unlinkat:
 		ret = sys_unlinkat(args[0], args[1], args[2]);
+		break;
 	case SYS_spawn:
 		ret = sys_spawn(args[0], args[1]);
 		break;

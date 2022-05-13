@@ -279,7 +279,7 @@ int exec(char *path, char **argv)
 	struct inode *ip;
 	struct proc *p = curr_proc();
 	if ((ip = namei(path)) == 0) {
-		errorf("invalid file name %s\n", path);
+		errorf("invalid file name %s", path);
 		return -1;
 	}
 	uvmunmap(p->pagetable, 0, p->max_page, 1);
@@ -293,7 +293,7 @@ int spawn(char *path, char **argv)
 	infof("spawn : %s\n", path);
 	struct inode *ip;
 	if ((ip = namei(path)) == 0) {
-		errorf("invalid file name %s\n", path);
+		errorf("invalid file name %s", path);
 		return -1;
 	}
 	struct proc *np = allocproc();

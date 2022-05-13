@@ -4,6 +4,9 @@
 #include "fs.h"
 #include "proc.h"
 
+#define USER_DIR 0x040000
+#define USER_FILE 0x100000
+
 // This is a system-level open file table that holds open files of all process.
 struct file filepool[FILEPOOLSIZE];
 
@@ -168,6 +171,7 @@ int linkat(int olddirfd, char *oldpath, int newdirfd, char *newpath, int flags)
 	struct inode *oldip, *newip;
 
 	if (strncmp(oldpath, newpath, DIRSIZ) == 0) {
+		errorf("In linkat: Same link!");
 		ret = -1;
 		goto quit;
 	}
@@ -179,6 +183,8 @@ int linkat(int olddirfd, char *oldpath, int newdirfd, char *newpath, int flags)
 		ret = -1;
 		goto release_dp;
 	}
+	ivalid(oldip);
+
 	if ((newip = dirlookup(dp, newpath, NULL)) != NULL) {
 		errorf("In linkat: New file exists!");
 		iput(newip);
@@ -213,13 +219,15 @@ int unlinkat(int dirfd, char *path, int flags)
 		ret = -1;
 		goto quit;
 	}
+	ivalid(ip);
+
 	if (dirunlink(dp, path) != 0) {
 		errorf("In unlinkat: dirunlink failed!");
 		ret = -1;
 		goto release_ip;
 	}
 	--ip->nlink;
-	iput(ip);
+	iupdate(ip);
 
 release_ip:
 	iput(ip);
@@ -235,13 +243,15 @@ int fstat(int fd, struct Stat *st)
 		return -1;
 	}
 	struct file *fp = p->files[fd];
-	if (fp == NULL || fp->ref == 0) {
+	if (fp == NULL || fp->ref == 0 || fp->type == FD_NONE) {
 		errorf("In fstat: fd [%d] not open!", fd);
 		return -1;
 	}
 	st->dev = fp->ip->dev;
 	st->ino = fp->ip->inum;
-	st->mode = fp->type;
+	st->mode = fp->ip->type == T_FILE ? USER_FILE :
+		   fp->ip->type == T_DIR  ? USER_DIR :
+						  0;
 	st->nlink = fp->ip->nlink;
 	return 0;
 }
