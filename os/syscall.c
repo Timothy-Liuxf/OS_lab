@@ -313,6 +313,16 @@ uint64 sys_close(int fd)
 int sys_fstat(int fd, uint64 stat)
 {
 	// TODO: your job is to complete the syscall
+	struct Stat statbuf;
+	struct proc *p = curr_proc();
+	if (fstat(fd, &statbuf) == -1) {
+		return -1;
+	}
+	if (copyout(p->pagetable, stat, (char *)&statbuf,
+		    sizeof(struct Stat)) == -1) {
+		errorf("In sys_fstat: invalid va!");
+		return -1;
+	}
 	return -1;
 }
 
@@ -327,8 +337,11 @@ int sys_linkat(int olddirfd, uint64 oldpath, int newdirfd, uint64 newpath,
 	char oldpathbuf[DIRSIZ], newpathbuf[DIRSIZ];
 	memset((void *)oldpathbuf, 0, sizeof(oldpathbuf));
 	memset((void *)newpathbuf, 0, sizeof(newpathbuf));
-	copyinstr(p->pagetable, oldpathbuf, oldpath, DIRSIZ);
-	copyinstr(p->pagetable, newpathbuf, oldpath, DIRSIZ);
+	if (copyinstr(p->pagetable, oldpathbuf, oldpath, DIRSIZ) == -1 ||
+	    copyinstr(p->pagetable, newpathbuf, oldpath, DIRSIZ) == -1) {
+		errorf("In sys_linkat: invalid virtual address!");
+		return -1;
+	}
 	return linkat(olddirfd, oldpathbuf, newdirfd, newpathbuf, flags);
 }
 
@@ -337,7 +350,10 @@ int sys_unlinkat(int dirfd, uint64 name, uint64 flags)
 	struct proc *p = curr_proc();
 	char namebuf[DIRSIZ];
 	memset(namebuf, 0, sizeof(namebuf));
-	copyinstr(p->pagetable, namebuf, name, DIRSIZ);
+	if (copyinstr(p->pagetable, namebuf, name, DIRSIZ) == -1) {
+		errorf("In sys_unlinkat: invalid virtual address!");
+		return -1;
+	}
 	return unlinkat(dirfd, namebuf, flags);
 }
 

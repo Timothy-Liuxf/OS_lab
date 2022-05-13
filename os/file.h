@@ -31,6 +31,14 @@ struct file {
 	uint off;
 };
 
+typedef struct Stat {
+	uint64 dev;
+	uint64 ino;
+	uint32 mode;
+	uint32 nlink;
+	uint64 pad[7];
+} Stat;
+
 // A few specific fd
 enum {
 	STDIN = 0,
@@ -49,5 +57,6 @@ struct file *stdio_init(int);
 int show_all_files();
 int linkat(int olddirfd, char *oldpath, int newdirfd, char *newpath, int flags);
 int unlinkat(int dirfd, char *path, int flags);
+int fstat(int fd, struct Stat *st);
 
 #endif // FILE_H

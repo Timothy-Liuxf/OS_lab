@@ -226,3 +226,22 @@ release_ip:
 quit:
 	return ret;
 }
+
+int fstat(int fd, struct Stat *st)
+{
+	struct proc *p = curr_proc();
+	if (fd < 0 || fd >= sizeof(p->files) / sizeof(p->files[0])) {
+		errorf("In fstat: fd [%d] overflow!", fd);
+		return -1;
+	}
+	struct file *fp = p->files[fd];
+	if (fp == NULL || fp->ref == 0) {
+		errorf("In fstat: fd [%d] not open!", fd);
+		return -1;
+	}
+	st->dev = fp->ip->dev;
+	st->ino = fp->ip->inum;
+	st->mode = fp->type;
+	st->nlink = fp->ip->nlink;
+	return 0;
+}
