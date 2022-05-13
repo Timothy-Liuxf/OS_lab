@@ -89,6 +89,8 @@ static struct inode *create(char *path, short type)
 	if (dirlink(dp, path, ip->inum) < 0)
 		panic("create: dirlink");
 
+	// LAB 4
+	ip->nlink = 1;
 	iput(dp);
 	return ip;
 }
@@ -153,4 +155,48 @@ uint64 inoderead(struct file *f, uint64 va, uint64 len)
 	if ((r = readi(f->ip, 1, va, f->off, len)) > 0)
 		f->off += r;
 	return r;
+}
+
+int linkat(int olddirfd, char *oldpath, int newdirfd, char *newpath, int flags)
+{
+	(void)olddirfd;
+	(void)newdirfd;
+	(void)flags;
+
+	int ret = 0;
+	struct inode *dp;
+	struct inode *oldip, *newip;
+
+	if (strncmp(oldpath, newpath, DIRSIZ) == 0) {
+		ret = -1;
+		goto quit;
+	}
+
+	dp = root_dir();
+
+	if ((oldip = dirlookup(dp, oldpath, NULL)) == NULL) {
+		errorf("In linkat: Old file not exists!");
+		ret = -1;
+		goto release_dp;
+	}
+	if ((newip = dirlookup(dp, newpath, NULL)) != NULL) {
+		errorf("In linkat: New file exists!");
+		iput(newip);
+		ret = -1;
+		goto release_old_ip;
+	}
+
+	if (dirlink(dp, newpath, oldip->inum) != 0) {
+		errorf("dirlink failed!");
+		ret = -1;
+		goto release_old_ip;
+	}
+	++oldip->nlink;
+
+release_old_ip:
+	iput(oldip);
+release_dp:
+	iput(dp);
+quit:
+	return ret;
 }

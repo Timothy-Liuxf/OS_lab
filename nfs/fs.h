@@ -41,11 +41,12 @@ struct superblock {
 #define T_DIR 1 // Directory
 #define T_FILE 2 // File
 
-// LAB4: Keep it the same as dinode in os/fs.h after you change it
+// LAB 4: Keep it the same as dinode in os/fs.h after you change it
 // On-disk inode structure
 struct dinode {
 	short type; // File type
-	short pad[3];
+	short pad[2];
+	short nlink;
 	uint size; // Size of file (bytes)
 	uint addrs[NDIRECT + 1]; // Data block addresses
 };

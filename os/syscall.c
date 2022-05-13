@@ -290,6 +290,7 @@ uint64 sys_openat(uint64 va, uint64 omode, uint64 _flags)
 {
 	struct proc *p = curr_proc();
 	char path[200];
+	memset(path, 0, sizeof(path));
 	copyinstr(p->pagetable, path, va, 200);
 	return fileopen(path, omode);
 }
@@ -309,17 +310,30 @@ uint64 sys_close(int fd)
 	return 0;
 }
 
-int sys_fstat(int fd,uint64 stat){
+int sys_fstat(int fd, uint64 stat)
+{
 	//TODO: your job is to complete the syscall
 	return -1;
 }
 
-int sys_linkat(int olddirfd, uint64 oldpath, int newdirfd, uint64 newpath, uint64 flags){
+int sys_linkat(int olddirfd, uint64 oldpath, int newdirfd, uint64 newpath,
+	       uint64 flags)
+{
 	//TODO: your job is to complete the syscall
-	return -1;
+	if (oldpath == 0 || newpath == 0) {
+		return -1;
+	}
+	struct proc *p = curr_proc();
+	char oldpathbuf[DIRSIZ], newpathbuf[DIRSIZ];
+	memset((void *)oldpathbuf, 0, sizeof(oldpathbuf));
+	memset((void *)newpathbuf, 0, sizeof(newpathbuf));
+	copyinstr(p->pagetable, oldpathbuf, oldpath, DIRSIZ);
+	copyinstr(p->pagetable, newpathbuf, oldpath, DIRSIZ);
+	return linkat(olddirfd, oldpathbuf, newdirfd, newpathbuf, flags);
 }
 
-int sys_unlinkat(int dirfd, uint64 name, uint64 flags){
+int sys_unlinkat(int dirfd, uint64 name, uint64 flags)
+{
 	//TODO: your job is to complete the syscall
 	return -1;
 }
@@ -382,13 +396,13 @@ void syscall()
 		ret = sys_wait(args[0], args[1]);
 		break;
 	case SYS_fstat:
-	    ret = sys_fstat(args[0],args[1]);
+		ret = sys_fstat(args[0], args[1]);
 		break;
 	case SYS_linkat:
-	    ret = sys_linkat(args[0],args[1],args[2],args[3],args[4]);
+		ret = sys_linkat(args[0], args[1], args[2], args[3], args[4]);
 		break;
 	case SYS_unlinkat:
-	    ret = sys_unlinkat(args[0],args[1],args[2]);
+		ret = sys_unlinkat(args[0], args[1], args[2]);
 	case SYS_spawn:
 		ret = sys_spawn(args[0], args[1]);
 		break;
