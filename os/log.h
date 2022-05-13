@@ -118,4 +118,4 @@ enum LOG_COLOR {
 		__builtin_unreachable();                                       \
 	} while (0)
 
-#endif //! LOG_H
+#endif // ! LOG_H

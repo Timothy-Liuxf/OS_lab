@@ -312,14 +312,14 @@ uint64 sys_close(int fd)
 
 int sys_fstat(int fd, uint64 stat)
 {
-	//TODO: your job is to complete the syscall
+	// TODO: your job is to complete the syscall
 	return -1;
 }
 
 int sys_linkat(int olddirfd, uint64 oldpath, int newdirfd, uint64 newpath,
 	       uint64 flags)
 {
-	//TODO: your job is to complete the syscall
+	// TODO: your job is to complete the syscall
 	if (oldpath == 0 || newpath == 0) {
 		return -1;
 	}

@@ -31,7 +31,7 @@ struct file {
 	uint off;
 };
 
-//A few specific fd
+// A few specific fd
 enum {
 	STDIN = 0,
 	STDOUT = 1,

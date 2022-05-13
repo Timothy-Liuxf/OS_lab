@@ -92,7 +92,7 @@ static void bfree(int dev, uint b)
 	brelse(bp);
 }
 
-//The inode table in memory
+// The inode table in memory
 struct {
 	struct inode inode[NINODE];
 } itable;
@@ -383,7 +383,7 @@ struct inode *dirlookup(struct inode *dp, char *name, uint *poff)
 	return 0;
 }
 
-//Show the filenames of all files in the directory
+// Show the filenames of all files in the directory
 int dirls(struct inode *dp)
 {
 	uint64 off, count;
@@ -455,7 +455,7 @@ int dirunlink(struct inode *dp, char *name)
 	return -1;
 }
 
-//Return the inode of the root directory
+// Return the inode of the root directory
 struct inode *root_dir()
 {
 	struct inode *r = iget(ROOTDEV, ROOTINO);
@@ -463,7 +463,7 @@ struct inode *root_dir()
 	return r;
 }
 
-//Find the corresponding inode according to the path
+// Find the corresponding inode according to the path
 struct inode *namei(char *path)
 {
 	int skip = 0;

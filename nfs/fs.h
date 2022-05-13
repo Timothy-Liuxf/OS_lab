@@ -71,4 +71,4 @@ struct dirent {
 	char name[DIRSIZ];
 };
 
-#endif //!__FS_H__
+#endif // !__FS_H__

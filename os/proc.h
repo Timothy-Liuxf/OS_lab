@@ -46,7 +46,7 @@ struct proc {
 	struct proc *parent; // Parent process
 	uint64 exit_code;
 	struct file *files
-		[FD_BUFFER_SIZE]; //File descriptor table, using to record the files opened by the process
+		[FD_BUFFER_SIZE]; // File descriptor table, using to record the files opened by the process
 	uint64 cycles_when_start; // The CPU cycle when the process starts
 	unsigned int syscall_times[MAX_SYSCALL_NUM];
 	long long priority;
