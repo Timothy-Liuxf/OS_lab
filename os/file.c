@@ -187,7 +187,7 @@ int linkat(int olddirfd, char *oldpath, int newdirfd, char *newpath, int flags)
 	}
 
 	if (dirlink(dp, newpath, oldip->inum) != 0) {
-		errorf("dirlink failed!");
+		errorf("In linkat: dirlink failed!");
 		ret = -1;
 		goto release_old_ip;
 	}
@@ -197,6 +197,32 @@ release_old_ip:
 	iput(oldip);
 release_dp:
 	iput(dp);
+quit:
+	return ret;
+}
+
+int unlinkat(int dirfd, char *path, int flags)
+{
+	(void)dirfd;
+	(void)flags;
+	int ret = 0;
+	struct inode *dp, *ip;
+	dp = root_dir();
+	if ((ip = dirlookup(dp, path, NULL)) == NULL) {
+		errorf("In unlinkat: path not exist!");
+		ret = -1;
+		goto quit;
+	}
+	if (dirunlink(dp, path) != 0) {
+		errorf("In unlinkat: dirunlink failed!");
+		ret = -1;
+		goto release_ip;
+	}
+	--ip->nlink;
+	iput(ip);
+
+release_ip:
+	iput(ip);
 quit:
 	return ret;
 }

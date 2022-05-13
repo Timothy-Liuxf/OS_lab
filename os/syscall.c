@@ -334,8 +334,11 @@ int sys_linkat(int olddirfd, uint64 oldpath, int newdirfd, uint64 newpath,
 
 int sys_unlinkat(int dirfd, uint64 name, uint64 flags)
 {
-	//TODO: your job is to complete the syscall
-	return -1;
+	struct proc *p = curr_proc();
+	char namebuf[DIRSIZ];
+	memset(namebuf, 0, sizeof(namebuf));
+	copyinstr(p->pagetable, namebuf, name, DIRSIZ);
+	return unlinkat(dirfd, namebuf, flags);
 }
 
 uint64 sys_set_priority(long long prio)

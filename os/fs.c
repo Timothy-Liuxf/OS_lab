@@ -430,7 +430,30 @@ int dirlink(struct inode *dp, char *name, uint inum)
 	return 0;
 }
 
-// LAB4: You may want to add dirunlink here
+// LAB 4: You may want to add dirunlink here
+int dirunlink(struct inode *dp, char *name)
+{
+	int off;
+	struct inode *ip;
+	struct dirent de;
+	if ((ip = dirlookup(dp, name, NULL)) == 0) {
+		return -1;
+	}
+	iput(ip);
+
+	for (off = 0; off < dp->size; off += sizeof(de)) {
+		if (readi(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
+			panic("dirunlink read");
+		if (de.inum != 0 && strncmp(name, de.name, DIRSIZ) == 0) {
+			de.inum = 0;
+			if (writei(dp, 0, (uint64)&de, off, sizeof(de)) !=
+			    sizeof(de))
+				panic("dirlink");
+			return 0;
+		}
+	}
+	return -1;
+}
 
 //Return the inode of the root directory
 struct inode *root_dir()

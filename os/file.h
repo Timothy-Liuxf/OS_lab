@@ -48,5 +48,6 @@ uint64 inoderead(struct file *, uint64, uint64);
 struct file *stdio_init(int);
 int show_all_files();
 int linkat(int olddirfd, char *oldpath, int newdirfd, char *newpath, int flags);
+int unlinkat(int dirfd, char *path, int flags);
 
 #endif // FILE_H
