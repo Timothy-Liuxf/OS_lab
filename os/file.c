@@ -33,6 +33,9 @@ void fileclose(struct file *f)
 	case FD_STDIO:
 		// Do nothing
 		break;
+	case FD_PIPE:
+	pipeclose(f->pipe, f->writable);
+		break;
 	case FD_INODE:
 		iput(f->ip);
 		break;
