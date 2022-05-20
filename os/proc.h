@@ -3,6 +3,8 @@
 
 #include "riscv.h"
 #include "types.h"
+#include "queue.h"
+#include "syscall_ids.h"
 
 #define NPROC (512)
 #define FD_BUFFER_SIZE (16)
@@ -43,7 +45,12 @@ struct proc {
 	uint64 max_page;
 	struct proc *parent; // Parent process
 	uint64 exit_code;
-	struct file *files[FD_BUFFER_SIZE]; //File descriptor table, using to record the files opened by the process
+	struct file *files
+		[FD_BUFFER_SIZE]; // File descriptor table, using to record the files opened by the process
+	uint64 cycles_when_start; // The CPU cycle when the process starts
+	unsigned int syscall_times[MAX_SYSCALL_NUM];
+	long long priority;
+	long long stride;
 };
 
 int cpuid();
@@ -55,7 +62,11 @@ void sched();
 void yield();
 int fork();
 int exec(char *, char **);
+int spawn(char *, char **);
+int setpriority(long long prio);
 int wait(int, int *);
+void add_task(struct proc *);
+struct proc *pop_task();
 struct proc *allocproc();
 int fdalloc(struct file *);
 int init_stdio(struct proc *);

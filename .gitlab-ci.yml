@@ -1,0 +1,12 @@
+default:
+  image: nzpznk/oslab-c-env
+
+stages:
+  - test
+
+test-code-job:
+  stage: test
+  script:
+    - git clone https://token:${UCORE_CHECKER_REPO_READ_TOKEN_2022S}@git.tsinghua.edu.cn/os-lab/ta-2022s/ucore-tutorial-checker-2022s.git ucore-tutorial-ci
+    - git clone https://token:${UCORE_TEST_REPO_READ_TOKEN_2022S}@git.tsinghua.edu.cn/os-lab/public/ucore-tutorial-test-2022s.git ucore-tutorial-ci/workplace/user
+    - cd ucore-tutorial-ci && make test CHAPTER=`echo $CI_COMMIT_REF_NAME | grep -oP 'ch\K[0-9]'`

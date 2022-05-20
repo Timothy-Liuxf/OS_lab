@@ -4,10 +4,13 @@
 #include "fs.h"
 #include "proc.h"
 
-//This is a system-level open file table that holds open files of all process. 
+#define USER_DIR 0x040000
+#define USER_FILE 0x100000
+
+// This is a system-level open file table that holds open files of all process.
 struct file filepool[FILEPOOLSIZE];
 
-//Abstract the stdio into a file.
+// Abstract the stdio into a file.
 struct file *stdio_init(int fd)
 {
 	struct file *f = filealloc();
@@ -18,7 +21,7 @@ struct file *stdio_init(int fd)
 	return f;
 }
 
-//The operation performed on the system-level open file table entry after some process closes a file.
+// The operation performed on the system-level open file table entry after some process closes a file.
 void fileclose(struct file *f)
 {
 	if (f->ref < 1)
@@ -29,9 +32,6 @@ void fileclose(struct file *f)
 	switch (f->type) {
 	case FD_STDIO:
 		// Do nothing
-		break;
-	case FD_PIPE:
-		pipeclose(f->pipe, f->writable);
 		break;
 	case FD_INODE:
 		iput(f->ip);
@@ -47,7 +47,7 @@ void fileclose(struct file *f)
 	f->type = FD_NONE;
 }
 
-//Add a new system-level table entry for the open file table
+// Add a new system-level table entry for the open file table
 struct file *filealloc()
 {
 	for (int i = 0; i < FILEPOOLSIZE; ++i) {
@@ -59,25 +59,23 @@ struct file *filealloc()
 	return 0;
 }
 
-//Show names of all files in the root_dir.
+// Show names of all files in the root_dir.
 int show_all_files()
 {
 	return dirls(root_dir());
 }
 
-//Create a new empty file based on path and type and return its inode;
-
-//if the file under the path exists, return its inode;
-
-//returns 0 if the type of file to be created is not T_file
+// Create a new empty file based on path and type and return its inode;
+// if the file under the path exists, return its inode;
+// returns 0 if the type of file to be created is not T_file
 static struct inode *create(char *path, short type)
 {
 	struct inode *ip, *dp;
-	dp = root_dir();
+	dp = root_dir(); // Remember that the root_inode is open in this step,so it needs closing then.
 	ivalid(dp);
 	if ((ip = dirlookup(dp, path, 0)) != 0) {
 		warnf("create a exist file\n");
-		iput(dp);
+		iput(dp); // Close the root_inode
 		ivalid(ip);
 		if (type == T_FILE && ip->type == T_FILE)
 			return ip;
@@ -87,22 +85,22 @@ static struct inode *create(char *path, short type)
 	if ((ip = ialloc(dp->dev, type)) == 0)
 		panic("create: ialloc");
 
-	tracef("create dinod and inode type = %d\n", type);
+	tracef("create dinode and inode type = %d\n", type);
 
 	ivalid(ip);
 	iupdate(ip);
 	if (dirlink(dp, path, ip->inum) < 0)
 		panic("create: dirlink");
 
+	// LAB 4
+	ip->nlink = 1;
 	iput(dp);
 	return ip;
 }
 
-//A process creates or opens a file according to its path, returning the file descriptor of the created or opened file.
-
-//If omode is O_CREATE, create a new file
-
-//if omode if the others,open a created file.
+// A process creates or opens a file according to its path, returning the file descriptor of the created or opened file.
+// If omode is O_CREATE, create a new file
+// if omode if the others,open a created file.
 int fileopen(char *path, uint64 omode)
 {
 	int fd;
@@ -121,7 +119,10 @@ int fileopen(char *path, uint64 omode)
 	}
 	if (ip->type != T_FILE)
 		panic("unsupported file inode type\n");
-	if ((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0) {
+	if ((f = filealloc()) == 0 ||
+	    (fd = fdalloc(f)) <
+		    0) { // Assign a system-level table entry to a newly created or opened file
+		// and then create a file descriptor that points to it
 		if (f)
 			fileclose(f);
 		iput(ip);
@@ -149,7 +150,7 @@ uint64 inodewrite(struct file *f, uint64 va, uint64 len)
 	return r;
 }
 
-//Read data from inode.
+// Read data from inode.
 uint64 inoderead(struct file *f, uint64 va, uint64 len)
 {
 	int r;
@@ -157,4 +158,100 @@ uint64 inoderead(struct file *f, uint64 va, uint64 len)
 	if ((r = readi(f->ip, 1, va, f->off, len)) > 0)
 		f->off += r;
 	return r;
+}
+
+int linkat(int olddirfd, char *oldpath, int newdirfd, char *newpath, int flags)
+{
+	(void)olddirfd;
+	(void)newdirfd;
+	(void)flags;
+
+	int ret = 0;
+	struct inode *dp;
+	struct inode *oldip, *newip;
+
+	if (strncmp(oldpath, newpath, DIRSIZ) == 0) {
+		errorf("In linkat: Same link!");
+		ret = -1;
+		goto quit;
+	}
+
+	dp = root_dir();
+
+	if ((oldip = dirlookup(dp, oldpath, NULL)) == NULL) {
+		errorf("In linkat: Old file not exists!");
+		ret = -1;
+		goto release_dp;
+	}
+	ivalid(oldip);
+
+	if ((newip = dirlookup(dp, newpath, NULL)) != NULL) {
+		errorf("In linkat: New file exists!");
+		iput(newip);
+		ret = -1;
+		goto release_old_ip;
+	}
+
+	if (dirlink(dp, newpath, oldip->inum) != 0) {
+		errorf("In linkat: dirlink failed!");
+		ret = -1;
+		goto release_old_ip;
+	}
+	++oldip->nlink;
+
+release_old_ip:
+	iput(oldip);
+release_dp:
+	iput(dp);
+quit:
+	return ret;
+}
+
+int unlinkat(int dirfd, char *path, int flags)
+{
+	(void)dirfd;
+	(void)flags;
+	int ret = 0;
+	struct inode *dp, *ip;
+	dp = root_dir();
+	if ((ip = dirlookup(dp, path, NULL)) == NULL) {
+		errorf("In unlinkat: path not exist!");
+		ret = -1;
+		goto quit;
+	}
+	ivalid(ip);
+
+	if (dirunlink(dp, path) != 0) {
+		errorf("In unlinkat: dirunlink failed!");
+		ret = -1;
+		goto release_ip;
+	}
+	--ip->nlink;
+	iupdate(ip);
+
+release_ip:
+	iput(ip);
+quit:
+	return ret;
+}
+
+int fstat(int fd, struct Stat *st)
+{
+	struct proc *p = curr_proc();
+	if (fd < 0 || fd >= sizeof(p->files) / sizeof(p->files[0])) {
+		errorf("In fstat: fd [%d] overflow!", fd);
+		return -1;
+	}
+	struct file *fp = p->files[fd];
+	if (fp == NULL || fp->ref == 0 || fp->type == FD_NONE) {
+		errorf("In fstat: fd [%d] not open!", fd);
+		return -1;
+	}
+	st->dev = fp->ip->dev;
+	st->ino = fp->ip->inum;
+	st->mode = fp->ip->type == T_FILE ? USER_FILE :
+		   fp->ip->type == T_DIR  ? USER_DIR :
+						  0;
+	st->nlink = fp->ip->nlink;
+	return 0;
 }

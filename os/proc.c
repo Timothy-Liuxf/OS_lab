@@ -3,6 +3,9 @@
 #include "loader.h"
 #include "trap.h"
 #include "vm.h"
+#include "queue.h"
+#include "timer.h"
+#include <limits.h>
 
 struct proc pool[NPROC];
 __attribute__((aligned(16))) char kstack[NPROC][PAGE_SIZE];
@@ -11,6 +14,12 @@ __attribute__((aligned(4096))) char trapframe[NPROC][TRAP_PAGE_SIZE];
 extern char boot_stack_top[];
 struct proc *current_proc;
 struct proc idle;
+struct queue task_queue;
+
+#define BIG_STRIDE 65536
+#define INIT_PRIORITY 16
+#define MIN_PRIORITY 2
+#define MAX_PRIORITY LLONG_MAX
 
 int threadid()
 {
@@ -27,6 +36,11 @@ struct proc *curr_proc()
 	return current_proc;
 }
 
+static int proc_cmp_func(int id1, int id2)
+{
+	return pool[id2].stride < pool[id1].stride;
+}
+
 // initialize the proc table at boot time.
 void proc_init()
 {
@@ -39,12 +53,31 @@ void proc_init()
 	idle.kstack = (uint64)boot_stack_top;
 	idle.pid = IDLE_PID;
 	current_proc = &idle;
+	init_queue(&task_queue, proc_cmp_func);
 }
 
 int allocpid()
 {
 	static int PID = 1;
 	return PID++;
+}
+
+struct proc *fetch_task()
+{
+	int index = pop_queue(&task_queue);
+	if (index < 0) {
+		debugf("No task to fetch\n");
+		return NULL;
+	}
+	debugf("fetch task %d(pid=%d) from task queue\n", index,
+	       pool[index].pid);
+	return pool + index;
+}
+
+void add_task(struct proc *p)
+{
+	push_queue(&task_queue, p - pool);
+	debugf("add task %d(pid=%d) to task queue\n", p - pool, p->pid);
 }
 
 // Look in the process table for an UNUSED proc.
@@ -75,6 +108,10 @@ found:
 	memset((void *)p->files, 0, sizeof(struct file *) * FD_BUFFER_SIZE);
 	p->context.ra = (uint64)usertrapret;
 	p->context.sp = p->kstack + KSTACK_SIZE;
+	p->cycles_when_start = get_cycle();
+	memset(p->syscall_times, 0, sizeof(p->syscall_times));
+	p->priority = INIT_PRIORITY;
+	p->stride = 0;
 	return p;
 }
 
@@ -98,11 +135,11 @@ void scheduler()
 {
 	struct proc *p;
 	for (;;) {
-		int has_proc = 0;
+		/*int has_proc = 0;
 		for (p = pool; p < &pool[NPROC]; p++) {
 			if (p->state == RUNNABLE) {
 				has_proc = 1;
-				debugf("swtich to proc %d", p - pool);
+				tracef("swtich to proc %d", p - pool);
 				p->state = RUNNING;
 				current_proc = p;
 				swtch(&idle.context, &p->context);
@@ -110,7 +147,16 @@ void scheduler()
 		}
 		if(has_proc == 0) {
 			panic("all app are over!\n");
+		}*/
+		p = fetch_task();
+		if (p == NULL) {
+			panic("all app are over!\n");
 		}
+		tracef("swtich to proc %d", p - pool);
+		p->state = RUNNING;
+		current_proc = p;
+		p->stride += BIG_STRIDE / p->priority;
+		swtch(&idle.context, &p->context);
 	}
 }
 
@@ -133,6 +179,7 @@ void sched()
 void yield()
 {
 	current_proc->state = RUNNABLE;
+	add_task(current_proc);
 	sched();
 }
 
@@ -150,7 +197,7 @@ void freeproc(struct proc *p)
 	if (p->pagetable)
 		freepagetable(p->pagetable, p->max_page);
 	p->pagetable = 0;
-	for (int i = 0; i > FD_BUFFER_SIZE; i++) {
+	for (int i = 0; i < FD_BUFFER_SIZE; i++) {
 		if (p->files[i] != NULL) {
 			fileclose(p->files[i]);
 		}
@@ -186,6 +233,7 @@ int fork()
 	np->trapframe->a0 = 0;
 	np->parent = p;
 	np->state = RUNNABLE;
+	add_task(np);
 	return np->pid;
 }
 
@@ -231,13 +279,46 @@ int exec(char *path, char **argv)
 	struct inode *ip;
 	struct proc *p = curr_proc();
 	if ((ip = namei(path)) == 0) {
-		errorf("invalid file name %s\n", path);
+		errorf("invalid file name %s", path);
 		return -1;
 	}
 	uvmunmap(p->pagetable, 0, p->max_page, 1);
 	bin_loader(ip, p);
 	iput(ip);
 	return push_argv(p, argv);
+}
+
+int spawn(char *path, char **argv)
+{
+	infof("spawn : %s\n", path);
+	struct inode *ip;
+	if ((ip = namei(path)) == 0) {
+		errorf("invalid file name %s", path);
+		return -1;
+	}
+	struct proc *np = allocproc();
+	if (np == NULL) {
+		panic("In spawn: allocproc failed!\n");
+	}
+
+	bin_loader(ip, np);
+	np->parent = curr_proc();
+	init_stdio(np);
+	add_task(np);
+	iput(ip);
+	push_argv(np, argv);
+	return np->pid;
+}
+
+int setpriority(long long prio)
+{
+	if (prio < MIN_PRIORITY || prio > MAX_PRIORITY) {
+		return -1;
+	}
+
+	struct proc *p = curr_proc();
+	p->priority = prio;
+	return (int)prio;
 }
 
 int wait(int pid, int *code)
@@ -266,6 +347,7 @@ int wait(int pid, int *code)
 			return -1;
 		}
 		p->state = RUNNABLE;
+		add_task(p);
 		sched();
 	}
 }

@@ -92,6 +92,7 @@ static void bfree(int dev, uint b)
 	brelse(bp);
 }
 
+// The inode table in memory
 struct {
 	struct inode inode[NINODE];
 } itable;
@@ -135,6 +136,8 @@ void iupdate(struct inode *ip)
 	dip = (struct dinode *)bp->data + ip->inum % IPB;
 	dip->type = ip->type;
 	dip->size = ip->size;
+	// LAB 4
+	dip->nlink = ip->nlink;
 	memmove(dip->addrs, ip->addrs, sizeof(ip->addrs));
 	bwrite(bp);
 	brelse(bp);
@@ -187,6 +190,8 @@ void ivalid(struct inode *ip)
 		dip = (struct dinode *)bp->data + ip->inum % IPB;
 		ip->type = dip->type;
 		ip->size = dip->size;
+		// LAB 4
+		ip->nlink = dip->nlink;
 		memmove(ip->addrs, dip->addrs, sizeof(ip->addrs));
 		brelse(bp);
 		ip->valid = 1;
@@ -204,7 +209,8 @@ void ivalid(struct inode *ip)
 // case it has to free the inode.
 void iput(struct inode *ip)
 {
-	if (ip->ref == 1 && ip->valid && 0 /*&& ip->nlink == 0*/) {
+	// LAB 4: Unmark the condition and change link count variable name (nlink) if needed
+	if (ip->ref == 1 && ip->valid && ip->nlink == 0) {
 		// inode has no links and no other references: truncate and free.
 		itrunc(ip);
 		ip->type = 0;
@@ -377,7 +383,7 @@ struct inode *dirlookup(struct inode *dp, char *name, uint *poff)
 	return 0;
 }
 
-//Show the filenames of all files in the directory
+// Show the filenames of all files in the directory
 int dirls(struct inode *dp)
 {
 	uint64 off, count;
@@ -424,7 +430,32 @@ int dirlink(struct inode *dp, char *name, uint inum)
 	return 0;
 }
 
-//Return the inode of the root directory
+// LAB 4: You may want to add dirunlink here
+int dirunlink(struct inode *dp, char *name)
+{
+	int off;
+	struct inode *ip;
+	struct dirent de;
+	if ((ip = dirlookup(dp, name, NULL)) == 0) {
+		return -1;
+	}
+	iput(ip);
+
+	for (off = 0; off < dp->size; off += sizeof(de)) {
+		if (readi(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
+			panic("dirunlink read");
+		if (de.inum != 0 && strncmp(name, de.name, DIRSIZ) == 0) {
+			de.inum = 0;
+			if (writei(dp, 0, (uint64)&de, off, sizeof(de)) !=
+			    sizeof(de))
+				panic("dirlink");
+			return 0;
+		}
+	}
+	return -1;
+}
+
+// Return the inode of the root directory
 struct inode *root_dir()
 {
 	struct inode *r = iget(ROOTDEV, ROOTINO);
@@ -432,7 +463,7 @@ struct inode *root_dir()
 	return r;
 }
 
-//Find the corresponding inode according to the path
+// Find the corresponding inode according to the path
 struct inode *namei(char *path)
 {
 	int skip = 0;

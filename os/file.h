@@ -8,7 +8,7 @@
 #define PIPESIZE (512)
 #define FILEPOOLSIZE (NPROC * FD_BUFFER_SIZE)
 
-// in-memory copy of an inode
+// in-memory copy of an inode,it can be used to quickly locate file entities on disk
 struct inode {
 	uint dev; // Device number
 	uint inum; // Inode number
@@ -17,9 +17,11 @@ struct inode {
 	short type; // copy of disk inode
 	uint size;
 	uint addrs[NDIRECT + 1];
+	// LAB 4
+	short nlink;
 };
 
-//a struct for pipe
+// a struct for pipe
 struct pipe {
 	char data[PIPESIZE]; 
 	uint nread; // number of bytes read
@@ -30,15 +32,23 @@ struct pipe {
 
 // file.h
 struct file {
-	enum { FD_NONE = 0, FD_PIPE, FD_INODE, FD_STDIO } type;
+	enum { FD_NONE = 0, FD_INODE, FD_STDIO } type;
 	int ref; // reference count
 	char readable;
 	char writable;
-	struct pipe *pipe; // FD_PIPE
 	struct inode *ip; // FD_INODE
 	uint off;
 };
 
+typedef struct Stat {
+	uint64 dev;
+	uint64 ino;
+	uint32 mode;
+	uint32 nlink;
+	uint64 pad[7];
+} Stat;
+
+// A few specific fd
 enum {
 	STDIN = 0,
 	STDOUT = 1,
@@ -47,10 +57,6 @@ enum {
 
 extern struct file filepool[FILEPOOLSIZE];
 
-int pipealloc(struct file *, struct file *);
-void pipeclose(struct pipe *, int);
-int piperead(struct pipe *, uint64, int);
-int pipewrite(struct pipe *, uint64, int);
 void fileclose(struct file *);
 struct file *filealloc();
 int fileopen(char *, uint64);
@@ -58,5 +64,8 @@ uint64 inodewrite(struct file *, uint64, uint64);
 uint64 inoderead(struct file *, uint64, uint64);
 struct file *stdio_init(int);
 int show_all_files();
+int linkat(int olddirfd, char *oldpath, int newdirfd, char *newpath, int flags);
+int unlinkat(int dirfd, char *path, int flags);
+int fstat(int fd, struct Stat *st);
 
 #endif // FILE_H
