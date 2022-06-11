@@ -1,6 +1,7 @@
 #include "defs.h"
 #include "proc.h"
 #include "sync.h"
+#include "string.h"
 
 struct mutex *mutex_create(int blocking)
 {
@@ -147,4 +148,13 @@ void cond_wait(struct condvar *cond, struct mutex *m)
 	sched();
 	debugf("wake up from cond");
 	mutex_lock(m);
+}
+
+int enable_deadlock_detect(int is_enable)
+{
+	if (is_enable != 0 && is_enable != 1) {
+		return -1;
+	}
+	curr_proc()->deadlock_detect_enabled = is_enable;
+	return 0;
 }

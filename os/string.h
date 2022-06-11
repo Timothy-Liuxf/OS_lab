@@ -10,5 +10,6 @@ char *safestrcpy(char *, const char *, int);
 int strlen(const char *);
 int strncmp(const char *, const char *, uint);
 char *strncpy(char *, const char *, int);
+void *memcpy(void *dst, const void *src, uint n);
 
 #endif // STRING_H

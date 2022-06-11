@@ -142,7 +142,14 @@ found:
 	p->next_mutex_id = 0;
 	p->next_semaphore_id = 0;
 	p->next_condvar_id = 0;
-	// LAB5: (1) you may initialize your new proc variables here
+	// LAB 5: (1) you may initialize your new proc variables here
+	p->deadlock_detect_enabled = 0;
+	memset(p->mtx_available, 0, sizeof(p->mtx_available));
+	memset(p->mtx_allocation, 0, sizeof(p->mtx_allocation));
+	memset(p->mtx_request, 0, sizeof(p->mtx_request));
+	memset(p->sem_available, 0, sizeof(p->sem_available));
+	memset(p->sem_allocation, 0, sizeof(p->sem_allocation));
+	memset(p->sem_request, 0, sizeof(p->sem_request));
 	return p;
 }
 

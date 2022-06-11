@@ -35,4 +35,5 @@ void semaphore_down(struct semaphore *);
 struct condvar *condvar_create();
 void cond_signal(struct condvar *);
 void cond_wait(struct condvar *, struct mutex *);
+int enable_deadlock_detect(int is_enable);
 #endif
